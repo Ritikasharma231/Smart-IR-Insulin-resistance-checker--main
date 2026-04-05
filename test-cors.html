@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Frontend-Backend Integration Test</h1>
+    
+    <div id="results"></div>
+    
+    <h2>Test Controls</h2>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testPrediction()">Test AI Prediction</button>
+    <button onclick="testChatbot()">Test Chatbot</button>
+    <button onclick="runAllTests()">Run All Tests</button>
+    
+    <h2>Test Results</h2>
+    <div id="test-output"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const resultsDiv = document.getElementById('results');
+        const testOutputDiv = document.getElementById('test-output');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `test-result ${type}`;
+            logEntry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            resultsDiv.appendChild(logEntry);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function logResult(testName, result, data) {
+            const timestamp = new Date().toLocaleTimeString();
+            const resultDiv = document.createElement('div');
+            resultDiv.innerHTML = `
+                <div class="test-result ${result ? 'success' : 'error'}">
+                    <strong>[${timestamp}] ${testName}</strong>: ${result ? '✅ PASS' : '❌ FAIL'}
+                </div>
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            `;
+            testOutputDiv.appendChild(resultDiv);
+            testOutputDiv.scrollTop = testOutputDiv.scrollHeight;
+        }
+
+        async function testHealth() {
+            log('Testing health endpoint...', 'loading');
+            try {
+                const response = await fetch(`${API_BASE}/`);
+                const data = await response.json();
+                log('Health endpoint working!', 'success');
+                logResult('Health Check', true, data);
+            } catch (error) {
+                log(`Health endpoint failed: ${error.message}`, 'error');
+                logResult('Health Check', false, { error: error.message });
+            }
+        }
+
+        async function testPrediction() {
+            log('Testing AI prediction endpoint...', 'loading');
+            try {
+                const testData = {
+                    model_type: "basic",
+                    Age: 35,
+                    Sex: 1,
+                    BMI: 28.5,
+                    Waist: 95
+                };
+                
+                const response = await fetch(`${API_BASE}/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                log('AI prediction working!', 'success');
+                logResult('AI Prediction', true, {
+                    prediction: data.label,
+                    risk_category: data.risk_category,
+                    risk_probability: data.risk_probability,
+                    has_explanation: !!data.explanation
+                });
+            } catch (error) {
+                log(`AI prediction failed: ${error.message}`, 'error');
+                logResult('AI Prediction', false, { error: error.message });
+            }
+        }
+
+        async function testChatbot() {
+            log('Testing chatbot endpoint...', 'loading');
+            try {
+                const chatData = {
+                    message: "What is insulin resistance?",
+                    user_context: {}
+                };
+                
+                const response = await fetch(`${API_BASE}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(chatData)
+                });
+                
+                const data = await response.json();
+                log('Chatbot working!', 'success');
+                logResult('Chatbot', true, {
+                    response_length: data.content ? data.content.length : 0,
+                    has_suggestions: !!(data.suggestions && data.suggestions.length > 0)
+                });
+            } catch (error) {
+                log(`Chatbot failed: ${error.message}`, 'error');
+                logResult('Chatbot', false, { error: error.message });
+            }
+        }
+
+        async function runAllTests() {
+            log('🚀 Running all integration tests...', 'loading');
+            await testHealth();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testPrediction();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testChatbot();
+            log('🏁 All tests completed!', 'success');
+        }
+
+        // Auto-run tests when page loads
+        window.onload = function() {
+            log('🌐 CORS Integration Test Page Loaded', 'success');
+            log('Backend URL: ' + API_BASE, 'info');
+            log('Frontend Origin: ' + window.location.origin, 'info');
+            runAllTests();
+        };
+    </script>
+</body>
+</html>
