@@ -9,7 +9,7 @@ import {
   UserIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
-import API_ENDPOINTS from '../config/api';
+import { API_ENDPOINTS } from '../config/api';
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -69,15 +69,19 @@ const Chatbot = () => {
       // Get AI response from backend
       const response = await getChatbotResponse(messageText.trim());
       
+      console.log('Full response object:', response); // Debug
+      console.log('Response content:', response.content); // Debug
+      
       const botMessage = {
         id: Date.now() + 1,
         type: 'bot',
-        content: response.content,
+        content: response.response || response.content || 'No content available',
         timestamp: new Date(),
         suggestions: response.suggestions || [],
         riskAssessment: response.riskAssessment || null
       };
 
+      console.log('Bot message:', botMessage); // Debug
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Chatbot error:', error);
@@ -99,11 +103,12 @@ const Chatbot = () => {
 
   const getChatbotResponse = async (message) => {
     try {
-      // Call backend chatbot endpoint
+      // Try backend first
       const response = await fetch(API_ENDPOINTS.BACKEND.CHAT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({
           message: message,
@@ -111,25 +116,142 @@ const Chatbot = () => {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+      if (response.ok) {
+        const responseData = await response.json();
+        return responseData;
       }
-
-      return await response.json();
     } catch (error) {
-      console.error('Chatbot API Error:', error);
-      
-      // Return fallback response
+      console.log('Backend not available, using fallback');
+    }
+
+    // Simple hardcoded fallback
+    return getHardcodedResponse(message);
+  };
+
+  const getHardcodedResponse = (message) => {
+    const lowerMessage = message.toLowerCase();
+    
+    // Greetings
+    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
       return {
-        content: "I'm currently unable to connect to my AI backend. However, I can still help you with general information about insulin resistance and health assessments. What would you like to know?",
+        content: "Hello! I'm your AI health assistant.\n\nI can help you:\n• Understand insulin resistance\n• Assess your risk factors\n• Get personalized health recommendations\n• Explain your assessment results\n\nWhat would you like to know?",
         suggestions: [
           "What is insulin resistance?",
-          "Risk factors to watch for",
-          "Healthy lifestyle tips",
-          "When to see a doctor"
+          "Assess my risk factors",
+          "Get health recommendations",
+          "Explain my recent results"
         ]
       };
     }
+    
+    // Insulin resistance basics
+    if (lowerMessage.includes('what is insulin resistance')) {
+      return {
+        content: "**What is Insulin Resistance?**\n\nInsulin resistance is a condition where your body's cells become less responsive to insulin, a hormone that regulates blood sugar levels.\n\n**Key Points:**\n• Blood sugar levels can rise\n• Increases risk of type 2 diabetes\n• Often reversible with lifestyle changes\n• May have no obvious symptoms initially\n\n**Good News:** With proper diet, exercise, and lifestyle changes, many people can improve their insulin sensitivity significantly.",
+        suggestions: [
+          "What are the risk factors?",
+          "How can I improve insulin sensitivity?",
+          "What are the symptoms?"
+        ]
+      };
+    }
+    
+    // Risk factors
+    if (lowerMessage.includes('risk factor') || lowerMessage.includes('risk factors')) {
+      return {
+        content: "**Major Risk Factors for Insulin Resistance:**\n\n**Modifiable Factors:**\n• Excess body weight (especially abdominal fat)\n• Sedentary lifestyle\n• Diet high in processed foods and sugar\n• Poor sleep quality\n• Chronic stress\n\n**Non-Modifiable Factors:**\n• Family history of diabetes\n• Age over 45\n• Certain ethnic backgrounds\n• High blood pressure\n• Abnormal cholesterol levels\n\n**Action Steps:** Focus on the modifiable factors - even small changes can make a big difference!",
+        suggestions: [
+          "How to reduce abdominal fat",
+          "Best exercises for insulin sensitivity",
+          "Foods that improve insulin sensitivity"
+        ]
+      };
+    }
+    
+    // Diet recommendations
+    if (lowerMessage.includes('diet') || lowerMessage.includes('food') || lowerMessage.includes('eat')) {
+      return {
+        content: "**Optimal Diet for Insulin Resistance:**\n\n**Focus on These Foods:**\n• High-fiber vegetables (broccoli, spinach, kale)\n• Lean proteins (chicken, fish, tofu)\n• Healthy fats (avocado, nuts, olive oil)\n• Whole grains (quinoa, brown rice, oats)\n• Low-glycemic fruits (berries, apples)\n\n**Limit or Avoid:**\n• Sugary drinks and desserts\n• White bread and pasta\n• Processed foods\n• Excessive alcohol\n\n**Recommended Pattern:** Mediterranean diet is excellent for insulin sensitivity. Aim for balanced meals with protein, healthy fats, and complex carbs.",
+        suggestions: [
+          "Sample meal plan",
+          "Foods to avoid",
+          "Best breakfast options"
+        ]
+      };
+    }
+    
+    // Exercise
+    if (lowerMessage.includes('exercise') || lowerMessage.includes('workout') || lowerMessage.includes('physical activity')) {
+      return {
+        content: "**Exercise for Insulin Sensitivity:**\n\n**Recommended Routine:**\n• 150 minutes weekly of moderate activity\n• 2 strength training sessions per week\n• Even 10-minute walks after meals help\n\n**Best Exercises:**\n• Brisk walking or cycling\n• Swimming or water aerobics\n• Resistance training with weights\n• Yoga and stretching\n\n**Key Principle:** Consistency matters more than intensity. Start slow and gradually increase duration and intensity.\n\n**Pro Tip:** A 10-minute walk after each meal can significantly improve blood sugar control!",
+        suggestions: [
+          "Beginner exercise plan",
+          "Best exercises for insulin resistance",
+          "How to start exercising"
+        ]
+      };
+    }
+    
+    // Symptoms
+    if (lowerMessage.includes('symptom') || lowerMessage.includes('signs')) {
+      return {
+        content: "**Common Symptoms of Insulin Resistance:**\n\n**Early Signs:**\n• Fatigue, especially after meals\n• Increased hunger or cravings\n• Difficulty concentrating\n• Frequent urination\n• Increased thirst\n\n**Physical Signs:**\n• Dark patches on skin (acanthosis nigricans)\n• Slow healing sores\n• Weight gain, especially around waist\n• Skin tags\n\n**Important:** Many people have no symptoms initially. Regular check-ups and risk assessment are crucial for early detection.",
+        suggestions: [
+          "When to see a doctor",
+          "How to get tested",
+          "Reversing early symptoms"
+        ]
+      };
+    }
+    
+    // Assessment results
+    if (lowerMessage.includes('my results') || lowerMessage.includes('my assessment') || lowerMessage.includes('my score')) {
+      const assessments = JSON.parse(localStorage.getItem('assessments') || '[]');
+      const latest = assessments[0];
+      
+      if (latest) {
+        return {
+          content: `Your latest assessment shows a ${latest.riskLevel.toLowerCase()} risk level (${latest.riskScore}%). ${latest.explanation || 'Your results indicate areas where lifestyle changes could help improve your insulin sensitivity.'}`,
+          suggestions: [
+            "Explain my risk factors",
+            "Personalized recommendations",
+            "How to improve my score"
+          ]
+        };
+      } else {
+        return {
+          content: "I don't see any previous assessments. Would you like to start a quick assessment to evaluate your insulin resistance risk?",
+          suggestions: [
+            "Start Basic Assessment",
+            "What assessments are available?",
+            "Risk factors to check"
+          ]
+        };
+      }
+    }
+    
+    // Prevention/Improvement
+    if (lowerMessage.includes('prevent') || lowerMessage.includes('improve') || lowerMessage.includes('reverse')) {
+      return {
+        content: "You can improve insulin sensitivity through: losing 5-10% of body weight, regular exercise, adequate sleep (7-9 hours), stress management, and a balanced diet. Even small changes can make a big difference in 3-6 months!",
+        suggestions: [
+          "Weight loss strategies",
+          "Stress reduction techniques",
+          "Sleep improvement tips"
+        ]
+      };
+    }
+    
+    // Default response
+    return {
+      content: "I'm here to help with insulin resistance questions! I can explain the condition, assess risk factors, provide diet and exercise recommendations, and help interpret your assessment results. What would you like to know?",
+      suggestions: [
+        "What is insulin resistance?",
+        "Assess my risk factors",
+        "Diet recommendations",
+        "Exercise guidelines"
+      ]
+    };
   };
 
   const getUserContext = () => {
@@ -345,9 +467,9 @@ const Chatbot = () => {
                           : 'bg-white text-gray-800 border border-gray-200'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
+                      <div className="text-sm leading-relaxed">
                         {message.type === 'bot' ? formatBotMessage(message.content) : message.content}
-                      </p>
+                      </div>
                       
                       {/* Risk Assessment Display */}
                       {message.riskAssessment && (
