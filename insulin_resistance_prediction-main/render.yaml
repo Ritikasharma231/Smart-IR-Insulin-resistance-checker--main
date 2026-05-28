@@ -2,8 +2,23 @@ services:
   - type: web
     name: insulin-api
     runtime: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    rootDir: .
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 2
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckTimeout: 10
+    numInstances: 1
     envVars:
+      - key: ENVIRONMENT
+        value: "production"
+      - key: PYTHON_VERSION
+        value: "3.11"
       - key: GROQ_API_KEY
-        sync: false
+        sync: false  # Set this in Render dashboard
+      - key: ENABLE_RAG
+        value: "true"
+      - key: CORS_ORIGINS
+        value: "http://localhost:3000,https://sgt-university.co.in,https://project-ryvfu.vercel.app"
+      - key: CLOUD_URL
+        sync: false  # Automatically set by Render if needed
