@@ -17,6 +17,7 @@ import AdvancedAssessment from './pages/AdvancedAssessment';
 import Results from './pages/Results';
 import History from './pages/History';
 import Profile from './pages/Profile';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -31,6 +32,22 @@ const ProtectedRoute = ({ children }) => {
   }
   
   return isAuthenticated ? children : <Navigate to="/login" />;
+};
+
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return <Navigate to="/login" />;
+  if (!isAdmin) return <Navigate to="/dashboard" />;
+  return children;
 };
 
 // Public route component (redirect if authenticated)
@@ -205,6 +222,21 @@ const AppContent = () => {
                     <Profile />
                   </motion.div>
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <AdminDashboard />
+                  </motion.div>
+                </AdminRoute>
               }
             />
 

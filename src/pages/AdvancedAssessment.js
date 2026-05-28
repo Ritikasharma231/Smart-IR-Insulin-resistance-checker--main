@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import apiService from '../services/apiService';
+import patientDataService from '../services/patientDataService';
+import { useAuth } from '../context/AuthContext';
 
 const AdvancedAssessment = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     type: 'Advanced',
@@ -116,6 +119,9 @@ const AdvancedAssessment = () => {
           newErrors.exerciseDuration = 'Duration must be between 5 and 180 minutes';
         }
         break;
+      default:
+        // Handle unexpected step values
+        break;
     }
 
     return newErrors;
@@ -167,30 +173,23 @@ const AdvancedAssessment = () => {
       
       // Map response to frontend format
       const result = apiService.mapFromBackendResponse(backendResponse, formData);
-      
-      // Save to localStorage
-      const existingAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-      const newAssessment = {
+      const newAssessment = await patientDataService.saveAssessment(user.userId, {
         ...result,
-        id: Date.now()
-      };
-      existingAssessments.unshift(newAssessment);
-      localStorage.setItem('assessments', JSON.stringify(existingAssessments));
-      
-      // Navigate to results page
+        id: Date.now(),
+      });
       navigate('/results', { state: { assessment: newAssessment } });
     } catch (error) {
       console.error('API Error:', error);
       setApiError('Failed to connect to the AI service. Please try again later.');
       
       // Fallback to local calculation if API fails
-      handleFallbackCalculation();
+      await handleFallbackCalculation();
     } finally {
       setIsCalculating(false);
     }
   };
 
-  const handleFallbackCalculation = () => {
+  const handleFallbackCalculation = async () => {
     // Comprehensive fallback calculation for advanced assessment
     let riskScore = 20;
     
@@ -293,12 +292,11 @@ const AdvancedAssessment = () => {
       id: Date.now()
     };
     
-    // Save to localStorage
-    const existingAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-    existingAssessments.unshift(fallbackResult);
-    localStorage.setItem('assessments', JSON.stringify(existingAssessments));
-    
-    navigate('/results', { state: { assessment: fallbackResult } });
+    const saved = await patientDataService.saveAssessment(user.userId, {
+      ...fallbackResult,
+      id: Date.now(),
+    });
+    navigate('/results', { state: { assessment: saved } });
   };
 
   const renderStepContent = () => {

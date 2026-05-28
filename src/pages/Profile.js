@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import patientDataService from '../services/patientDataService';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -24,6 +25,7 @@ const Profile = () => {
     publicProfile: false,
     emailNotifications: true
   });
+  const [stats, setStats] = useState({ total: 0, basic: 0, intermediate: 0, advanced: 0 });
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: UserIcon },
@@ -49,7 +51,6 @@ const Profile = () => {
   };
 
   useEffect(() => {
-    // Load settings from localStorage
     try {
       const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
       if (settings.notifications !== undefined) {
@@ -63,21 +64,23 @@ const Profile = () => {
     }
   }, []);
 
-  const getAssessmentStats = () => {
-    try {
-      const assessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-      const total = assessments.length;
-      const basic = assessments.filter(a => a.type === 'Basic').length;
-      const intermediate = assessments.filter(a => a.type === 'Intermediate').length;
-      const advanced = assessments.filter(a => a.type === 'Advanced').length;
-      
-      return { total, basic, intermediate, advanced };
-    } catch (error) {
-      return { total: 0, basic: 0, intermediate: 0, advanced: 0 };
-    }
-  };
-
-  const stats = getAssessmentStats();
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!user?.userId) return;
+      try {
+        const assessments = await patientDataService.getAssessmentsForUser(user.userId);
+        setStats({
+          total: assessments.length,
+          basic: assessments.filter((a) => a.type === 'Basic').length,
+          intermediate: assessments.filter((a) => a.type === 'Intermediate').length,
+          advanced: assessments.filter((a) => a.type === 'Advanced').length,
+        });
+      } catch {
+        setStats({ total: 0, basic: 0, intermediate: 0, advanced: 0 });
+      }
+    };
+    loadStats();
+  }, [user?.userId]);
 
   const renderProfileTab = () => (
     <div className="space-y-6">

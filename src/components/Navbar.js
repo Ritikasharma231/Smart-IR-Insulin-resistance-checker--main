@@ -10,12 +10,13 @@ import {
   Bars3Icon,
   XMarkIcon,
   HeartIcon,
-  CalculatorIcon
+  CalculatorIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,6 +33,9 @@ const Navbar = () => {
     { name: 'Assessments', href: '/assessment/basic', icon: CalculatorIcon },
     { name: 'History', href: '/history', icon: ClockIcon },
     { name: 'Profile', href: '/profile', icon: UserIcon },
+    ...(isAuthenticated && isAdmin
+      ? [{ name: 'Admin', href: '/admin', icon: ShieldCheckIcon }]
+      : []),
   ];
 
   const isActivePath = (path) => {

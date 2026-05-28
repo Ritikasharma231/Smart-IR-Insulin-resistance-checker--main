@@ -11,6 +11,7 @@ import {
   CalculatorIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
+import patientDataService from '../services/patientDataService';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -22,24 +23,22 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    // Load data from localStorage
-    const loadDashboardData = () => {
+    const loadDashboardData = async () => {
       try {
-        const assessments = JSON.parse(localStorage.getItem('assessments') || '[]');
+        const assessments = await patientDataService.getAssessmentsForUser(user.userId);
         setRecentAssessments(assessments.slice(0, 3));
-        
         setStats({
           totalAssessments: assessments.length,
           lastAssessmentDate: assessments.length > 0 ? assessments[0].date : null,
-          riskTrend: calculateRiskTrend(assessments)
+          riskTrend: calculateRiskTrend(assessments),
         });
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       }
     };
 
-    loadDashboardData();
-  }, []);
+    if (user?.userId) loadDashboardData();
+  }, [user?.userId]);
 
   const calculateRiskTrend = (assessments) => {
     if (assessments.length < 2) return 'stable';

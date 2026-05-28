@@ -5,16 +5,26 @@
   "dependencies": {
     "@headlessui/react": "^2.0.0",
     "@heroicons/react": "^2.0.18",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "express-rate-limit": "^7.5.1",
+    "framer-motion": "^10.16.4",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
     "recharts": "^2.8.0",
-    "framer-motion": "^10.16.4",
-    "lucide-react": "^0.263.1",
-    "clsx": "^2.0.0"
+    "sqlite3": "^5.1.7"
   },
   "scripts": {
     "start": "react-scripts start",
+    "server": "node server/index.js",
+    "reset-admin": "node server/scripts/reset-admin.js",
+    "dev": "concurrently \"npm run server\" \"npm run start\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -38,10 +48,11 @@
     ]
   },
   "devDependencies": {
-    "react-scripts": "5.0.1",
-    "tailwindcss": "^3.3.0",
     "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.24"
-  },
-  "proxy": "http://localhost:8000"
+    "concurrently": "^8.2.2",
+    "http-proxy-middleware": "^2.0.9",
+    "postcss": "^8.4.24",
+    "react-scripts": "5.0.1",
+    "tailwindcss": "^3.3.0"
+  }
 }

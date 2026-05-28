@@ -22,7 +22,14 @@ class ApiService {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}: ${response.statusText}`);
+        let detail = response.statusText;
+        try {
+          const errBody = await response.json();
+          detail = errBody.detail || errBody.message || JSON.stringify(errBody);
+        } catch {
+          // ignore JSON parse errors
+        }
+        throw new Error(`API ${response.status}: ${detail}`);
       }
       
       return await response.json();
@@ -53,20 +60,11 @@ class ApiService {
 
   // Make prediction using FastAPI backend
   async predictInsulinResistance(patientData) {
-    try {
-      // Map frontend data to backend schema
-      const backendData = this.mapToBackendSchema(patientData);
-      
-      return this.request(this.baseURL, {
-        method: 'POST',
-        body: JSON.stringify(backendData),
-      });
-    } catch (error) {
-      console.error('Prediction API Error:', error);
-      
-      // Return fallback prediction
-      return this.getFallbackPrediction(patientData);
-    }
+    const backendData = this.mapToBackendSchema(patientData);
+    return this.request(this.baseURL, {
+      method: 'POST',
+      body: JSON.stringify(backendData),
+    });
   }
 
   // Fallback prediction when backend is unavailable
@@ -114,27 +112,28 @@ class ApiService {
 
   // Map frontend assessment data to FastAPI backend schema
   mapToBackendSchema(data) {
+    const modelType = (data.type || 'basic').toLowerCase();
     const baseSchema = {
-      model_type: data.type.toLowerCase(), // "basic", "intermediate", "advanced"
+      model_type: modelType,
       Age: parseFloat(data.age),
       Sex: data.sex === 'male' ? 1 : 0,
       BMI: parseFloat(data.bmi),
       Waist: parseFloat(data.waistCircumference),
     };
 
-    // Add intermediate fields if available
-    if (data.fastingGlucose !== undefined && data.triglycerides !== undefined) {
+    if (modelType === 'intermediate' || modelType === 'advanced') {
       baseSchema.Glucose = parseFloat(data.fastingGlucose);
       baseSchema.Triglycerides = parseFloat(data.triglycerides);
     }
 
-    // Add advanced fields if available
-    if (data.hdl !== undefined) {
+    if (modelType === 'advanced') {
       baseSchema.HDL = parseFloat(data.hdl);
-    }
-    
-    if (data.exerciseFrequency !== undefined) {
       baseSchema.Exercise = parseFloat(data.exerciseFrequency);
+      // Additional advanced fields (optional, for storage)
+      if (data.systolicBP) baseSchema.SystolicBP = parseFloat(data.systolicBP);
+      if (data.diastolicBP) baseSchema.DiastolicBP = parseFloat(data.diastolicBP);
+      if (data.exerciseIntensity) baseSchema.ExerciseIntensity = data.exerciseIntensity;
+      if (data.exerciseDuration) baseSchema.ExerciseDuration = parseFloat(data.exerciseDuration);
     }
 
     return baseSchema;
@@ -142,6 +141,9 @@ class ApiService {
 
   // Map backend response to frontend format
   mapFromBackendResponse(backendResponse, originalData) {
+    if (backendResponse.fallback) {
+      return backendResponse;
+    }
     return {
       riskScore: backendResponse.risk_probability,
       riskLevel: backendResponse.risk_category,

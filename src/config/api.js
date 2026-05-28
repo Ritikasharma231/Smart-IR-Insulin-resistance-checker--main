@@ -1,6 +1,5 @@
-// API Configuration for Insulin Tracker Backend Integration
-// Update these URLs with your actual backend endpoints
-
+// ML API (FastAPI) — predictions & chat
+// Patient/auth data uses relative /api → SQLite server (see npm run server)
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
 
 export const API_ENDPOINTS = {
@@ -8,7 +7,7 @@ export const API_ENDPOINTS = {
   BACKEND: {
     PREDICT: `${API_BASE_URL}/predict`,
     CHAT: `${API_BASE_URL}/chat`,
-    HEALTH: `${API_BASE_URL}/`,
+    HEALTH: `${API_BASE_URL}/health`,
   },
   
   // Authentication Endpoints (if using backend-example.js)

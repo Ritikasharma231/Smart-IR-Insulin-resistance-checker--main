@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ChartBarIcon,
   HeartIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -24,12 +23,14 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { useAuth } from '../context/AuthContext';
+import patientDataService from '../services/patientDataService';
 
 const Results = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [assessment, setAssessment] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
 
   // Helper function to format AI explanation into structured content
   const formatExplanation = (explanation) => {
@@ -142,44 +143,36 @@ const Results = () => {
   };
 
   useEffect(() => {
-    // Get assessment from location state or localStorage
-    if (location.state?.assessment) {
-      setAssessment(location.state.assessment);
-    } else {
-      // Try to get the most recent assessment from localStorage
-      const assessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-      if (assessments.length > 0) {
-        setAssessment(assessments[0]);
-      } else {
-        navigate('/dashboard');
+    const load = async () => {
+      if (location.state?.assessment) {
+        setAssessment(location.state.assessment);
+        return;
       }
-    }
-  }, [location.state, navigate]);
+      if (user?.userId) {
+        const assessments = await patientDataService.getAssessmentsForUser(user.userId);
+        if (assessments.length > 0) {
+          setAssessment(assessments[0]);
+          return;
+        }
+      }
+      navigate('/dashboard');
+    };
+    load();
+  }, [location.state, navigate, user?.userId]);
 
   const getRiskColor = (level) => {
-    switch (level) {
-      case 'Low':
-        return 'text-green-600 bg-green-100 border-green-200';
-      case 'Moderate':
-        return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'High':
-        return 'text-red-600 bg-red-100 border-red-200';
-      default:
-        return 'text-gray-600 bg-gray-100 border-gray-200';
-    }
+    const s = (level || '').toLowerCase();
+    if (s.includes('low')) return 'text-green-600 bg-green-100 border-green-200';
+    if (s.includes('moderate')) return 'text-yellow-600 bg-yellow-100 border-yellow-200';
+    if (s.includes('high')) return 'text-red-600 bg-red-100 border-red-200';
+    return 'text-gray-600 bg-gray-100 border-gray-200';
   };
 
   const getRiskIcon = (level) => {
-    switch (level) {
-      case 'Low':
-        return CheckCircleIcon;
-      case 'Moderate':
-        return ExclamationTriangleIcon;
-      case 'High':
-        return ExclamationTriangleIcon;
-      default:
-        return HeartIcon;
-    }
+    const s = (level || '').toLowerCase();
+    if (s.includes('low')) return CheckCircleIcon;
+    if (s.includes('moderate') || s.includes('high')) return ExclamationTriangleIcon;
+    return HeartIcon;
   };
 
   const generateChartData = () => {

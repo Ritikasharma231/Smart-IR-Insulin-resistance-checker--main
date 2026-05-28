@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import dataApi, { setAuthToken, getAuthToken } from '../services/dataApi';
+import { resetApiCheck } from '../services/patientDataService';
 
-// Initial state
 const initialState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
 };
 
-// Action types
 const AUTH_ACTIONS = {
   LOGIN_START: 'LOGIN_START',
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
@@ -17,14 +17,10 @@ const AUTH_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
 };
 
-// Reducer function
 const authReducer = (state, action) => {
   switch (action.type) {
     case AUTH_ACTIONS.LOGIN_START:
-      return {
-        ...state,
-        isLoading: true,
-      };
+      return { ...state, isLoading: true };
     case AUTH_ACTIONS.LOGIN_SUCCESS:
       return {
         ...state,
@@ -54,118 +50,107 @@ const authReducer = (state, action) => {
         isLoading: false,
       };
     case AUTH_ACTIONS.SET_LOADING:
-      return {
-        ...state,
-        isLoading: action.payload,
-      };
+      return { ...state, isLoading: action.payload };
     default:
       return state;
   }
 };
 
-// Create context
 const AuthContext = createContext();
 
-// Provider component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Load user from localStorage on app start
+  const persistSession = (token, user) => {
+    setAuthToken(token);
+    localStorage.setItem('user', JSON.stringify(user));
+    resetApiCheck();
+    dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: user });
+  };
+
   useEffect(() => {
-    const loadUser = () => {
+    const restore = async () => {
       try {
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          const user = JSON.parse(userData);
+        const token = getAuthToken();
+        const cached = localStorage.getItem('user');
+        if (!token || !cached) {
+          dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
+          return;
+        }
+        try {
+          const { user } = await dataApi.me();
           dispatch({ type: AUTH_ACTIONS.LOAD_USER, payload: user });
-        } else {
+        } catch {
+          localStorage.removeItem('user');
+          setAuthToken(null);
           dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
         }
-      } catch (error) {
-        console.error('Error loading user:', error);
+      } catch {
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     };
-
-    loadUser();
+    restore();
   }, []);
 
-  // Login function
   const login = async (credentials) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-    
     try {
-      // For demo purposes, create a mock user
-      // In production, this would call your API
-      const mockUser = {
-        id: 1,
-        name: credentials.email.split('@')[0],
-        email: credentials.email,
-        avatar: `https://ui-avatars.com/api/?name=${credentials.email.split('@')[0]}&background=random`
-      };
-
-      // Save to localStorage
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      
-      dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: mockUser });
-      return { success: true };
+      const { token, user } = await dataApi.login({
+        email: credentials.email.trim(),
+        password: credentials.password,
+      });
+      persistSession(token, user);
+      return { success: true, role: user.role };
     } catch (error) {
       dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE });
-      return { success: false, error: error.message };
+      return { success: false, error: error.message || 'Login failed' };
     }
   };
 
-  // Register function
   const register = async (userData) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-    
     try {
-      // For demo purposes, create a mock user
-      // In production, this would call your API
-      const mockUser = {
-        id: Date.now(),
+      const { token, user } = await dataApi.register({
         name: userData.name,
-        email: userData.email,
-        avatar: `https://ui-avatars.com/api/?name=${userData.name.replace(' ', '+')}&background=random`
-      };
-
-      // Save to localStorage
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      
-      dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: mockUser });
-      return { success: true };
+        email: userData.email.trim(),
+        password: userData.password,
+        phone: userData.phone || '',
+      });
+      persistSession(token, user);
+      return { success: true, role: user.role };
     } catch (error) {
       dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE });
-      return { success: false, error: error.message };
+      return { success: false, error: error.message || 'Registration failed' };
     }
   };
 
-  // Logout function
   const logout = () => {
+    setAuthToken(null);
     localStorage.removeItem('user');
+    resetApiCheck();
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   };
 
-  const value = {
-    ...state,
-    login,
-    register,
-    logout,
-  };
+  const isAdmin = state.user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={{
+        ...state,
+        isAdmin,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 

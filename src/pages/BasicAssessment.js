@@ -10,9 +10,12 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../services/apiService';
+import patientDataService from '../services/patientDataService';
+import { useAuth } from '../context/AuthContext';
 
 const BasicAssessment = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({
     type: 'Basic',
@@ -88,6 +91,8 @@ const BasicAssessment = () => {
         break;
       case 2: // Review - no validation needed
         break;
+      default:
+        break;
     }
 
     setErrors(newErrors);
@@ -142,17 +147,10 @@ const BasicAssessment = () => {
       
       // Map response to frontend format
       const result = apiService.mapFromBackendResponse(backendResponse, formData);
-      
-      // Save to localStorage
-      const existingAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-      const newAssessment = {
+      const newAssessment = await patientDataService.saveAssessment(user.userId, {
         ...result,
-        id: Date.now()
-      };
-      existingAssessments.unshift(newAssessment);
-      localStorage.setItem('assessments', JSON.stringify(existingAssessments));
-      
-      // Navigate to results page
+        id: Date.now(),
+      });
       navigate('/results', { state: { assessment: newAssessment } });
     } catch (error) {
       console.error('API Error:', error);
@@ -163,14 +161,10 @@ const BasicAssessment = () => {
         const fallbackResult = apiService.getFallbackPrediction(formData);
         const result = apiService.mapFromBackendResponse(fallbackResult, formData);
         
-        const existingAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-        const newAssessment = {
+        const newAssessment = await patientDataService.saveAssessment(user.userId, {
           ...result,
-          id: Date.now()
-        };
-        existingAssessments.unshift(newAssessment);
-        localStorage.setItem('assessments', JSON.stringify(existingAssessments));
-        
+          id: Date.now(),
+        });
         navigate('/results', { state: { assessment: newAssessment } });
       } catch (fallbackError) {
         console.error('Fallback Error:', fallbackError);
@@ -201,7 +195,6 @@ const BasicAssessment = () => {
       </div>
       <div className="flex justify-between mt-4">
         {steps.map((step, index) => {
-          const Icon = step.icon;
           return (
             <div key={index} className="flex flex-col items-center">
               <div className={`mfp-progress-step ${

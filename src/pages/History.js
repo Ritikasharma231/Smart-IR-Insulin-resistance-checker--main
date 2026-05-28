@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -11,33 +11,27 @@ import {
   FunnelIcon
 } from '@heroicons/react/24/outline';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAuth } from '../context/AuthContext';
+import patientDataService from '../services/patientDataService';
 
 const History = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [assessments, setAssessments] = useState([]);
   const [filteredAssessments, setFilteredAssessments] = useState([]);
   const [filter, setFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('date-desc');
-  const [selectedAssessment, setSelectedAssessment] = useState(null);
 
-  useEffect(() => {
-    loadAssessments();
-  }, []);
-
-  useEffect(() => {
-    applyFiltersAndSort();
-  }, [assessments, filter, sortOrder]);
-
-  const loadAssessments = () => {
+  const loadAssessments = useCallback(async () => {
+    if (!user?.userId) return;
     try {
-      const storedAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-      setAssessments(storedAssessments);
+      setAssessments(await patientDataService.getAssessmentsForUser(user.userId));
     } catch (error) {
       console.error('Error loading assessments:', error);
     }
-  };
+  }, [user?.userId]);
 
-  const applyFiltersAndSort = () => {
+  const applyFiltersAndSort = useCallback(() => {
     let filtered = [...assessments];
 
     // Apply filter
@@ -60,17 +54,23 @@ const History = () => {
     });
 
     setFilteredAssessments(filtered);
-  };
+  }, [assessments, filter, sortOrder]);
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this assessment?')) {
-      try {
-        const updatedAssessments = assessments.filter(a => a.id !== id);
-        setAssessments(updatedAssessments);
-        localStorage.setItem('assessments', JSON.stringify(updatedAssessments));
-      } catch (error) {
-        console.error('Error deleting assessment:', error);
-      }
+  useEffect(() => {
+    loadAssessments();
+  }, [loadAssessments]);
+
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [applyFiltersAndSort]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this assessment?')) return;
+    try {
+      await patientDataService.deleteAssessment(id);
+      await loadAssessments();
+    } catch (error) {
+      console.error('Error deleting assessment:', error);
     }
   };
 
@@ -79,16 +79,11 @@ const History = () => {
   };
 
   const getRiskColor = (level) => {
-    switch (level) {
-      case 'Low':
-        return 'text-green-600 bg-green-100 border-green-200';
-      case 'Moderate':
-        return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'High':
-        return 'text-red-600 bg-red-100 border-red-200';
-      default:
-        return 'text-gray-600 bg-gray-100 border-gray-200';
-    }
+    const s = (level || '').toLowerCase();
+    if (s.includes('low')) return 'text-green-600 bg-green-100 border-green-200';
+    if (s.includes('moderate')) return 'text-yellow-600 bg-yellow-100 border-yellow-200';
+    if (s.includes('high')) return 'text-red-600 bg-red-100 border-red-200';
+    return 'text-gray-600 bg-gray-100 border-gray-200';
   };
 
   const getChartData = () => {
